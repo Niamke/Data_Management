@@ -1,0 +1,219 @@
+---
+title: "Analyse statistique, Etude FISSA"
+author: "Niamke NGUESSAN"
+date: "2023-09-01"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+library(readr)
+alerrt <- read_delim("F:/PERSO/Data-management-/alerrt.csv",delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+library(readr)
+library(dplyr)
+library(sqldf)
+library(questionr)
+library(ggplot2)
+library(knitr)
+library(prettyR)
+library(gtsummary)
+
+```
+
+## Data management
+
+```{r I.0}
+
+alerrt_etude <- filter(alerrt,is.na(redcap_repeat_instrument)==TRUE)
+alerrt_etude$q10_eli <-as.Date(alerrt_etude$q10_eli)
+alerrt_etude$q2_inc <- as.Date(alerrt_etude$q2_inc)
+alerrt_etude$q1a_schd_d7<- as.Date(alerrt_etude$q1a_schd_d7)
+alerrt_etude$q1a_schd_d14<- as.Date(alerrt_etude$q1a_schd_d14)
+alerrt_etude$q1a_schd_d21<- as.Date(alerrt_etude$q1a_schd_d21)
+alerrt_etude$q4a_inc <- as.Date(alerrt_etude$q4a_inc)
+
+## Recodage 999 tensions art.sys et art.dias
+
+### INCLUSION
+alerrt_etude$q18f_inc<-ifelse(alerrt_etude$q18f_inc==999,NA,alerrt_etude$q18f_inc)
+alerrt_etude$q18g_inc<-ifelse(alerrt_etude$q18g_inc==999,NA,alerrt_etude$q18g_inc)
+### J7
+alerrt_etude$q9f_schd_d7<-ifelse(alerrt_etude$q9f_schd_d7==999,NA,alerrt_etude$q9f_schd_d7) 
+alerrt_etude$q9g_schd_d7<-ifelse(alerrt_etude$q9g_schd_d7==999,NA,alerrt_etude$q9g_schd_d7)  
+### J14
+alerrt_etude$q8f_schd_d14<-ifelse(alerrt_etude$q8f_schd_d14==999,NA,alerrt_etude$q8f_schd_d14) 
+alerrt_etude$q8g_schd_d14<-ifelse(alerrt_etude$q8g_schd_d14==999,NA,alerrt_etude$q8g_schd_d14)
+### J21
+alerrt_etude$q8f_schd_d21<-ifelse(alerrt_etude$q8f_schd_d21==999,NA,alerrt_etude$q8f_schd_d21) 
+alerrt_etude$q8g_schd_d21<-ifelse(alerrt_etude$q8g_schd_d21==999,NA,alerrt_etude$q8g_schd_d21)
+
+# Renommer les variablesInclusion
+alerrt_etude <- mutate(alerrt_etude, q6_inc=factor(q6_inc,levels = c(1,2),labels = c("Homme","Femme")),
+                        q7_inc=as.numeric(q7_inc),
+                        q8_inc = factor(q8_inc,levels = c(1,2,3,4,5,6),
+                                        labels =c("A pieds"," Moto"," Velo",
+                                                  "vehicule medicale", "vehicule non medicale","autre")),
+                        q9a_inc=factor(q9a_inc,levels = c(1,2,3,4,5,6),
+                                       labels=c("Aucun","Coranic","Primaire","Secondaire","Superieur","autre")),
+                        q11_inc=factor(q11_inc,levels = c(1,2,3),labels = c("Oui","Non", NA)),
+                        q13_inc=factor(q13_inc,levels = c(1,2,3),labels = c("Oui","Non", NA)),
+                        q13h_inc=factor(q13h_inc,levels = c(1,2,3),labels = c("Oui","Non", NA)),
+                        q18c_inc=as.numeric(q18c_inc))
+
+# Renommer les variables j7
+alerrt_etude <- mutate(alerrt_etude, q9c_schd_d7=as.numeric(q9c_schd_d7)) # Poids j_7
+
+# Renommer les variables j14
+alerrt_etude <- mutate(alerrt_etude, q8c_schd_d14 =as.numeric(q8c_schd_d14 )) # Poids j_14
+
+# Renommer les variables j14
+alerrt_etude <- mutate(alerrt_etude, q8c_schd_d21=as.numeric(q8c_schd_d21)) # Poids j_21
+
+```
+
+
+## I. INCLUSION
+
+### I.1  Données demographiques
+
+```{r I.1}
+alerrt_etude %>%
+  select(q5d_inc,q6_inc,q7_inc,q18a_1_inc,q9a_inc,q8_inc) %>%
+   tbl_summary(missing = "no",label = list(q5d_inc ~ "age",q6_inc~"sexe",q7_inc~"distance du domicile au soins",
+                            q18a_1_inc~"Site" ,q9a_inc ~ "niveau d'éducation",q8_inc ~ "Arrivé a l'hopital")) %>% 
+  add_stat_label(location = "column")%>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Données démographiques**") %>%
+  as_gt() %>%
+  gt::tab_header(title = gt::md("**Table 1. Données démographiques**"),
+    subtitle = gt::md("_Inclusion_")) %>%
+  gt::tab_source_note(" ")
+ 
+```
+
+### I.2 Parcours de soins
+
+```{r I.2}
+alerrt_etude %>%
+  select(q11_inc) %>%
+   tbl_summary(label = list(q11_inc ~ "Soins anterieur"))%>% 
+  add_stat_label(location = "column")%>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Parcours de soins**") %>%
+  as_gt() %>%
+  gt::tab_header(title = gt::md("**Table 1. Parcours de soins**"),
+    subtitle = gt::md("_Inclusion_")) %>%
+  gt::tab_source_note("")
+ 
+```
+
+### I.3 Traitement anterieur
+
+```{r I.3}
+alerrt_etude %>%
+  select(q13_inc,q13h_inc ) %>%
+   tbl_summary(label = list(q13_inc~"Traitement anterieur",q13h_inc~"Automedication"))%>% 
+  add_stat_label(location ="column")
+```
+
+### I.4 Constantes
+
+```{r I.4}
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")# mettre la table en fr
+alerrt_etude %>%
+  select(q18a_inc,q18b_inc,q18c_inc,q18f_inc,q18g_inc,q18h_inc,q18i_inc,q18j_inc) %>%
+  tbl_summary(missing = "no",label = list(q18a_inc~"Temperature",q18b_inc~"Taille",
+                q18c_inc~"Poids",q18f_inc~"tension arterielle syst",q18g_inc~"tensiona rterielle diast", 
+                q18h_inc~"frequence cardiaque",q18i_inc~"frequence respiratoire",q18j_inc~"spo2")) %>% 
+  add_stat_label(location = "column")%>%
+  bold_labels() %>%
+  modify_header(list(label ~ "**Variable**", all_stat_cols() ~ "**{level}**")) %>%
+  modify_spanning_header(all_stat_cols() ~ "**Constantes**") %>%
+  as_gt() %>%
+  gt::tab_header(title = gt::md("**Table 1. Constantes**"),
+    subtitle = gt::md("_Inclusion_")) %>%
+  gt::tab_source_note("")
+
+
+```
+
+### I.5 Examen laboratoire et imagerie medicale
+
+```{r I.5}
+alerrt_etude %>%
+  select(q20_inc,q21_inc) %>%
+  tbl_summary(label = list(q20_inc ~ "Examen Laboratoire", q21_inc ~ "Imagerie Medicale")) %>% 
+  add_stat_label(location = "column")
+
+```
+
+### I.6 Hypotheses diagnostiques et traitement a dministré sur site
+
+```{r I.6}
+#alerrt_etude %>%
+  #select(q22_inc) %>%
+  #tbl_summary(label = list(q22_inc ~ "Hypothese diagnostique")) %>% 
+  #add_stat_label(location = "column")
+```
+
+## II VISITE J_7
+
+```{r II }
+cat( "Nombre de visites de suivi J7 effectées :",sum(alerrt_etude$q1_schd_d7))
+```
+
+
+### II.1 Constantes
+
+```{r II.1}
+alerrt_etude %>%
+  select(q9a_schd_d7,q9b_schd_d7,q9c_schd_d7,q9f_schd_d7,q9g_schd_d7,q9h_schd_d7,q9i_schd_d7,q9j_schd_d7) %>%
+  tbl_summary(label = list(q9a_schd_d7~"Temperature",q9b_schd_d7~"Taille",
+                q9c_schd_d7~"Poids",q9f_schd_d7~"tension arterielle syst",q9g_schd_d7~"tensiona rterielle diast", 
+                q9h_schd_d7~"frequence cardiaque",q9i_schd_d7~"frequence respiratoire",q9j_schd_d7~"spo2")) %>% 
+  add_stat_label(location = "column")
+```
+
+
+
+## III VISITE J_14
+
+```{r III}
+cat( "Nombre de visites de suivi J14 effectées :",sum(alerrt_etude$q1_schd_d14,na.rm = T))
+```
+
+
+### III.1 Constantes
+
+```{r III.1}
+alerrt_etude %>%
+  select(q8a_schd_d14,q8b_schd_d14,q8c_schd_d14,q8f_schd_d14,q8g_schd_d14,q8h_schd_d14,q8i_schd_d14,q8j_schd_d14) %>%
+  tbl_summary(label = list(q8a_schd_d14~"Temperature",q8b_schd_d14~"Taille",
+                q8c_schd_d14~"Poids",q8f_schd_d14~"tension arterielle syst",q8g_schd_d14~"tensiona rterielle diast", 
+                q8h_schd_d14~"frequence cardiaque",q8i_schd_d14~"frequence respiratoire",q8j_schd_d14~"spo2")) %>% 
+  add_stat_label(location = "column")
+```
+
+
+## IV VISITE J_21
+
+```{r IV}
+cat( "Nombre de visites de suivi J21 effectées :",sum(alerrt_etude$q1_schd_d21,na.rm = T))
+```
+
+### IV.1 Constantes
+
+```{r IV.1}
+alerrt_etude %>%
+  select(q8a_schd_d21,q8b_schd_d21,q8c_schd_d21,q8f_schd_d21,q8g_schd_d21,q8h_schd_d21,q8i_schd_d21,q8j_schd_d21) %>%
+  tbl_summary(label = list(q8a_schd_d21~"Temperature",q8b_schd_d21~"Taille",
+                q8c_schd_d21~"Poids",q8f_schd_d21~"tension arterielle syst",q8g_schd_d21~"tensiona rterielle diast", 
+                q8h_schd_d21~"frequence cardiaque",q8i_schd_d21~"frequence respiratoire",q8j_schd_d21~"spo2")) %>% 
+  add_stat_label(location = "column")
+
+```
